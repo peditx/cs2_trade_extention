@@ -1,31 +1,34 @@
 {
   "manifest_version": 3,
-  "name": "CS2 Price Alert & Chart",
-  "version": "1.2.0",
-  "description": "Adds a candlestick chart with timeframes and price alerts to CS2 item pages.",
+  "name": "CS2 Trade Extension",
+  "version": "1.0",
+  "description": "Adds a candlestick chart and price alerts to Steam market pages.",
   "icons": {
     "128": "icon.png"
   },
+  
   "content_scripts": [
     {
-      "matches": [
-        "*://steamcommunity.com/market/listings/730/*"
-      ],
-      "js": [
-        "lightweight-charts.standalone.production.js",
-        "content.js"
-      ],
-      "css": [
-        "styles.css"
-      ]
+      "matches": ["*://steamcommunity.com/market/listings/730/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"]
     }
   ],
-  "permissions": [
-    "storage",
-    "notifications"
-  ],
+  
   "host_permissions": [
     "*://steamcommunity.com/market/*"
+  ],
+  
+  "web_accessible_resources": [
+    {
+      "resources": ["lightweight-charts.standalone.production.js"],
+      "matches": ["*://steamcommunity.com/*"]
+    }
+  ],
+  
+  "permissions": [
+    "notifications", 
+    "storage"         
   ]
 }
 
