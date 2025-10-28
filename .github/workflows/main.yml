@@ -1,11 +1,10 @@
 name: Build Chrome Extension
 
 on:
-  # Run on pushes to the main branch
   push:
-    branches: [ "main" ]
-  
-  # Allow running this workflow manually from the Actions tab
+    branches:
+      - main
+  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 jobs:
@@ -13,57 +12,73 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Check out the repository code
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - name: 1. Checkout repository
+        uses: actions/checkout@v3
 
-      # Step 2: Read the version from manifest.json
-      - name: Read extension version
-        id: manifest
+      - name: 2. Read version from manifest
+        id: manifest_version
+        run: echo "version=$(jq -r .version manifest.json)" >> $GITHUB_OUTPUT
+
+      - name: 3. Create build directory
+        run: mkdir build
+
+      - name: 4. Copy necessary files to build directory
+        # This step MUST include ALL the files needed by the extension
         run: |
-          VERSION=$(jq -r '.version' manifest.json)
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-        
-      # Step 3: Create a build directory and copy files
-      - name: Create build directory and copy files
-        run: |
-          mkdir build
           cp manifest.json build/
           cp content.js build/
           cp styles.css build/
           cp lightweight-charts.standalone.production.js build/
+          cp background.js build/
           cp icon.png build/
 
-      # === Step 4: Build ZIP file (for Chrome Web Store) ===
-      - name: Create ZIP file
+      - name: 5. Generate .crx file (for testing)
         run: |
+          # Save the private key from GitHub Secrets to a file
+          # The key must be stored in a secret named CRX_PRIVATE_KEY
+          echo "${{ secrets.CRX_PRIVATE_KEY }}" > build_key.pem
+          
+          # Get the Chrome app ID from the key (optional, good for debugging)
+          app_id=$(openssl rsa -in build_key.pem -pubout -outform DER | openssl dgst -sha256 -binary | openssl enc -base64 | tr -d '=' | tr '/+' '_-' | cut -c 1-32)
+          echo "App ID: $app_id"
+          
+          # Pack using Google Chrome itself, which is pre-installed on GitHub runners
+          google-chrome-stable --pack-extension=./build --pack-extension-key=build_key.pem
+          
+          # Rename the .crx file (Chrome 123+ outputs .crx, older versions outputted .pem)
+          if [ -f "build.crx" ]; then
+            mv build.crx "cs2-trade-extention-v${{ steps.manifest_version.outputs.version }}.crx"
+            echo "Packed build.crx"
+          elif [ -f "build.pem" ]; then
+            # This is a fallback for older chrome pack behaviors
+            mv build.pem "cs2-trade-extention-v${{ steps.manifest_version.outputs.version }}.crx"
+            echo "Packed build.pem as crx"
+          else
+            echo "Could not find packed .crx or .pem file."
+            exit 1
+          fi
+          
+          # Clean up the private key file
+          rm build_key.pem
+
+      - name: 6. Create .zip file (for Chrome Web Store)
+        run: |
+          # Go into the build directory to zip its contents, not the folder itself
           cd build
-          zip -r ../cs2-trade-extention-v${{ steps.manifest.outputs.version }}.zip .
+          zip -r "../cs2-trade-extention-v${{ steps.manifest_version.outputs.version }}.zip" .
           cd ..
-
-      # === Step 5: Build CRX file (using Google Chrome directly) ===
-      - name: Build CRX file
-        run: |
-          # 1. Save the private key from GitHub Secrets to a file
-          echo "${{ secrets.CRX_PRIVATE_KEY }}" > key.pem
           
-          # 2. Use Google Chrome's built-in packer
-          # This command is available on ubuntu-latest runners
-          google-chrome --pack-extension=./build --pack-extension-key=./key.pem
-          
-          # 3. Rename the output file (it's named 'build.crx' by default)
-          mv build.crx cs2-trade-extention-v${{ steps.manifest.outputs.version }}.crx
-
-      # === Step 6: Upload BOTH files as artifacts ===
-      - name: Upload ZIP artifact (for Web Store)
-        uses: actions/upload-artifact@v4
+      - name: 7. Upload .crx Artifact (for testing)
+        uses: actions/upload-artifact@v3
         with:
-          name: cs2-trade-extention-ZIP
-          path: cs2-trade-extention-v${{ steps.manifest.outputs.version }}.zip
+          name: cs2-trade-extention-crx
+          path: "*.crx"
+          retention-days: 7
 
-      - name: Upload CRX artifact (for Testing)
-        uses: actions/upload-artifact@v4
+      - name: 8. Upload .zip Artifact (for Web Store)
+        uses: actions/upload-artifact@v3
         with:
-          name: cs2-trade-extention-CRX
-          path: cs2-trade-extention-v${{ steps.manifest.outputs.version }}.crx
+          name: cs2-trade-extention-zip
+          path: "*.zip"
+          retention-days: 7
 
