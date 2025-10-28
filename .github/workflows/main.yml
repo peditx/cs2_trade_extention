@@ -42,8 +42,9 @@ jobs:
           cd ..
 
       # === Step 5: Build CRX file (for testing/manual distribution) ===
+      # Using a new, active action
       - name: Build CRX file
-        uses: wj-config/action-pack-chrome-extension@v2
+        uses: its-rn/action-pack-chrome-extension@v1
         with:
           # This tells the action where your extension files are
           src_dir: 'build'
