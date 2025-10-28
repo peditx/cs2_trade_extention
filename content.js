@@ -1,7 +1,7 @@
 // == CS2 Price Alert Extension Logic ==
 // This script waits for the Steam Market page to be ready,
 // then injects the chart and alert UI.
-// v2: Added support for non-commodity (specific skin) pages.
+// v3: Added check for chart library loading.
 
 (function() {
     'use strict';
@@ -78,9 +78,12 @@
         // This exists on both commodity and non-commodity pages.
         const targetElement = document.getElementById('market_buyorder_info');
 
-        if (g_ItemID && targetElement) {
+        // --- NEW: Check if the Charting Library is loaded ---
+        const chartLibraryLoaded = typeof LightweightCharts !== 'undefined';
+
+        if (g_ItemID && targetElement && chartLibraryLoaded) {
             // Success! We found everything.
-            console.log(`CS2 Alert: Initialized OK. ItemID: ${g_ItemID}, Target found.`);
+            console.log(`CS2 Alert: Initialized OK. ItemID: ${g_ItemID}, Target found, Chart Library loaded.`);
             // Prevent re-injection if script runs multiple times
             if (!document.getElementById('cs2-chart-container')) {
                 main(targetElement, g_ItemID);
@@ -89,6 +92,7 @@
             // Retry
             if (!g_ItemID) console.log('CS2 Alert: Waiting for ItemID...');
             if (!targetElement) console.log('CS2 Alert: Waiting for target DOM element...');
+            if (!chartLibraryLoaded) console.log('CS2 Alert: Waiting for Charting Library...'); // Added this log
             setTimeout(tryToInitialize, CHECK_INTERVAL_MS);
         }
     }
@@ -132,20 +136,15 @@
                 <input type="number" id="cs2-buy-price" placeholder="Buy if below...">
                 <button id="cs2-set-buy" class="cs2-button set-alert">Set Buy</button>
                 <input type="number" id="cs2-sell-price" placeholder="Sell if above...">
-                <button id="cs2-set-sell" class="cs2-button set-alert">Set Sell</button>
+                <button id="cs2-set-sell" class="cs2-button set-alert">Sell</button>
                 <button id="cs2-clear-alerts" class="cs2-button clear-alert">Clear All</button>
             </div>
             <div id="cs2-current-alerts"></div>
         `;
 
         // --- 3. Load Charting Library ---
-        // We assume the library is loaded via web_accessible_resources
-        // The script tag injection method is less reliable.
-        if (typeof LightweightCharts === 'undefined') {
-            console.error('CS2 Alert: LightweightCharts library not found!');
-            chartContainer.innerText = 'Error: Charting library failed to load.';
-            return;
-        }
+        // Library is already checked in tryToInitialize, so we can use it.
+        // No need for the check here anymore.
 
         // --- 4. Initialize Chart ---
         g_Chart = LightweightCharts.createChart(chartContainer, {
