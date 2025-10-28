@@ -1,0 +1,57 @@
+name: Build Chrome Extension
+
+on:
+  # Run on pushes to the main branch
+  push:
+    branches: [ "main" ]
+  
+  # Allow running this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the repository code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Read the version from manifest.json
+      # This uses 'jq' (a command-line JSON processor) to get the "version" value
+      - name: Read extension version
+        id: manifest
+        run: |
+          VERSION=$(jq -r '.version' manifest.json)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        
+      # Step 3: Create a build directory
+      - name: Create build directory
+        run: mkdir build
+
+      # Step 4: Copy all necessary files into the build directory
+      # This ensures only the required files are in the final .zip
+      - name: Copy extension files
+        run: |
+          cp manifest.json build/
+          cp content.js build/
+          cp styles.css build/
+          cp lightweight-charts.standalone.production.js build/
+          cp icon.png build/
+
+      # Step 5: Create a ZIP file of the build directory
+      # The zip will be named like 'cs2-price-alert-v1.0.2.zip'
+      - name: Create ZIP file
+        run: |
+          cd build
+          zip -r ../cs2-price-alert-v${{ steps.manifest.outputs.version }}.zip .
+          cd ..
+
+      # Step 6: Upload the ZIP file as an artifact
+      # This makes the .zip file available for download from the Actions run page
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cs2-price-alert-extension
+          path: cs2-price-alert-v${{ steps.manifest.outputs.version }}.zip
+
