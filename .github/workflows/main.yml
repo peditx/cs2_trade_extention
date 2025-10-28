@@ -41,22 +41,18 @@ jobs:
           zip -r ../cs2-trade-extention-v${{ steps.manifest.outputs.version }}.zip .
           cd ..
 
-      # === Step 5: Build CRX file (for testing/manual distribution) ===
-      # Using a new, active action
+      # === Step 5: Build CRX file (using Google Chrome directly) ===
       - name: Build CRX file
-        uses: its-rn/action-pack-chrome-extension@v1
-        with:
-          # This tells the action where your extension files are
-          src_dir: 'build'
+        run: |
+          # 1. Save the private key from GitHub Secrets to a file
+          echo "${{ secrets.CRX_PRIVATE_KEY }}" > key.pem
           
-          # This tells the action to name the output file
-          crx_name: 'cs2-trade-extention-v${{ steps.manifest.outputs.version }}'
+          # 2. Use Google Chrome's built-in packer
+          # This command is available on ubuntu-latest runners
+          google-chrome --pack-extension=./build --pack-extension-key=./key.pem
           
-          # This uses the private key you stored in GitHub Secrets
-          pem_key: ${{ secrets.CRX_PRIVATE_KEY }}
-          
-          # Required filename for the private key on the runner
-          pem_name: 'key.pem'
+          # 3. Rename the output file (it's named 'build.crx' by default)
+          mv build.crx cs2-trade-extention-v${{ steps.manifest.outputs.version }}.crx
 
       # === Step 6: Upload BOTH files as artifacts ===
       - name: Upload ZIP artifact (for Web Store)
