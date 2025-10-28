@@ -1,6 +1,7 @@
 // == CS2 Price Alert Extension Logic ==
 // This script waits for the Steam Market page to be ready,
 // then injects the chart and alert UI.
+// v2: Added support for non-commodity (specific skin) pages.
 
 (function() {
     'use strict';
@@ -27,21 +28,39 @@
      * This function will retry until it succeeds.
      */
     function tryToInitialize() {
-        // Try to find the item ID. Steam uses different variables.
-        // 1. Check for the function that loads the graph (most reliable)
-        if (typeof Market_LoadOrderSpread === 'function') {
-            const funcString = Market_LoadOrderSpread.toString();
-            const match = funcString.match(/g_rgHistory\[\s*(\d+)\s*\]/);
-            if (match && match[1]) {
-                g_ItemID = match[1];
+        // --- Try to find ItemID ---
+        // 1. Check for the function call in the HTML (most reliable for non-commodities)
+        if (!g_ItemID) {
+            try {
+                const pageHTML = document.documentElement.innerHTML;
+                const match = pageHTML.match(/Market_LoadOrderSpread\(\s*(\d+)\s*\);/);
+                if (match && match[1]) {
+                    g_ItemID = match[1];
+                }
+            } catch (e) {
+                console.warn('CS2 Alert: Error searching page HTML for ItemID.', e);
             }
         }
-        // 2. Fallback to global variable
+
+        // 2. Check for commodity item function (fallback)
+        if (!g_ItemID && typeof Market_LoadOrderSpread === 'function') {
+            try {
+                const funcString = Market_LoadOrderSpread.toString();
+                const match = funcString.match(/g_rgHistory\[\s*(\d+)\s*\]/);
+                if (match && match[1]) {
+                    g_ItemID = match[1];
+                }
+            } catch (e) {
+                console.warn('CS2 Alert: Error parsing Market_LoadOrderSpread function.', e);
+            }
+        }
+
+        // 3. Fallback to global variable (least reliable)
         if (!g_ItemID && typeof g_ItemNameID !== 'undefined') {
             g_ItemID = g_ItemNameID;
         }
 
-        // Try to find the item name (for notifications)
+        // --- Try to find ItemName ---
         if (typeof g_strMarketItemName !== 'undefined') {
             g_ItemName = g_strMarketItemName;
         } else {
@@ -54,13 +73,18 @@
             }
         }
 
-        // Try to find the DOM element to inject into
-        const targetElement = document.getElementById('market_commodity_order_spread');
+        // --- Try to find Target Element ---
+        // 'market_buyorder_info' contains the "Place Buy Order" section
+        // This exists on both commodity and non-commodity pages.
+        const targetElement = document.getElementById('market_buyorder_info');
 
         if (g_ItemID && targetElement) {
             // Success! We found everything.
             console.log(`CS2 Alert: Initialized OK. ItemID: ${g_ItemID}, Target found.`);
-            main(targetElement, g_ItemID);
+            // Prevent re-injection if script runs multiple times
+            if (!document.getElementById('cs2-chart-container')) {
+                main(targetElement, g_ItemID);
+            }
         } else {
             // Retry
             if (!g_ItemID) console.log('CS2 Alert: Waiting for ItemID...');
@@ -83,8 +107,9 @@
         uiContainer.id = 'cs2-ui-container';
 
         // Inject containers into the page
-        targetElement.parentNode.insertBefore(chartContainer, targetElement.nextSibling);
-        chartContainer.parentNode.insertBefore(uiContainer, chartContainer.nextSibling);
+        // We inject *before* the "Place Buy Order" box
+        targetElement.parentNode.insertBefore(chartContainer, targetElement);
+        targetElement.parentNode.insertBefore(uiContainer, targetElement);
 
         // --- 2. Inject Timeframe/Zoom UI ---
         uiContainer.innerHTML = `
@@ -167,6 +192,7 @@
 
         // --- 5. Fetch Price Data ---
         try {
+            // We use g_ItemName (market_hash_name) for fetching history
             const response = await fetch(`https://steamcommunity.com/market/pricehistory/?appid=730&market_hash_name=${encodeURIComponent(g_ItemName)}`);
             if (!response.ok) throw new Error('Network response was not ok');
             
@@ -213,9 +239,13 @@
             if (timeframe === 'Hour') {
                 keyTime = Math.floor(timestamp / ONE_HOUR) * ONE_HOUR;
             } else if (timeframe === 'Week') {
-                const day = new Date(timestamp).getUTCDay();
-                const firstDayOfWeek = timestamp - (day * ONE_DAY); // Assuming Sunday is day 0
-                keyTime = Math.floor(firstDayOfWeek / ONE_DAY) * ONE_DAY;
+                // Get Monday as the start of the week (UTC)
+                const date = new Date(timestamp);
+                const day = date.getUTCDay(); // 0 = Sunday, 1 = Monday, ...
+                const diff = date.getUTCDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+                const monday = new Date(date.setUTCDate(diff));
+                keyTime = new Date(Date.UTC(monday.getUTCFullYear(), monday.getUTCMonth(), monday.getUTCDate())).getTime();
+
             } else if (timeframe === 'Month') {
                 const date = new Date(timestamp);
                 keyTime = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)).getTime();
@@ -261,6 +291,7 @@
     function updateChartData(timeframe) {
         g_CurrentTimeframe = timeframe;
         const ohlcData = aggregateData(timeframe);
+        if (!g_CandlestickSeries) return;
         g_CandlestickSeries.setData(ohlcData);
         
         // Update active button state
@@ -274,6 +305,7 @@
      * @param {string} zoom - "1M", "6M", "1Y", "All"
      */
     function applyZoom(zoom) {
+        if (!g_Chart || !g_CandlestickSeries) return;
         const data = g_CandlestickSeries.data();
         if (data.length === 0) return;
 
@@ -281,15 +313,21 @@
         let from;
 
         const now = new Date();
+        const toDate = new Date(to * 1000);
+
         if (zoom === '1M') {
-            from = new Date(now.setUTCMonth(now.getUTCMonth() - 1)).getTime() / 1000;
+            from = new Date(Date.UTC(toDate.getUTCFullYear(), toDate.getUTCMonth() - 1, toDate.getUTCDate())).getTime() / 1000;
         } else if (zoom === '6M') {
-            from = new Date(now.setUTCMonth(now.getUTCMonth() - 6)).getTime() / 1000;
+            from = new Date(Date.UTC(toDate.getUTCFullYear(), toDate.getUTCMonth() - 6, toDate.getUTCDate())).getTime() / 1000;
         } else if (zoom === '1Y') {
-            from = new Date(now.setUTCFullYear(now.getUTCFullYear() - 1)).getTime() / 1000;
+            from = new Date(Date.UTC(toDate.getUTCFullYear() - 1, toDate.getUTCMonth(), toDate.getUTCDate())).getTime() / 1000;
         } else { // All
             from = data[0].time;
             g_Chart.timeScale().fitContent();
+            // Update active button state for 'All'
+            document.querySelectorAll('.cs2-control-group:nth-child(2) .cs2-button').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.zoom === 'All');
+            });
             return; // fitContent handles this case
         }
         
@@ -359,6 +397,7 @@
     function loadAndDisplayAlerts() {
         const key = `cs2_alert_${g_ItemID}`;
         const display = document.getElementById('cs2-current-alerts');
+        if (!display) return; // Exit if UI not ready
         
         chrome.storage.local.get([key], (result) => {
             const alerts = result[key] || [];
@@ -366,11 +405,12 @@
             
             if (alerts.length > 0) {
                 let text = 'Current Alerts: ';
-                alerts.forEach(a => {
-                    if (a.type === 'buy') text += `<span>Buy below $${a.price.toFixed(2)}</span>`;
-                    if (a.type === 'sell') text += `<span>Sell above $${a.price.toFixed(2)}</span>`;
+                const alertSpans = alerts.map(a => {
+                    if (a.type === 'buy') return `<span>Buy below $${a.price.toFixed(2)}</span>`;
+                    if (a.type === 'sell') return `<span>Sell above $${a.price.toFixed(2)}</span>`;
+                    return '';
                 });
-                display.innerHTML = text;
+                display.innerHTML = text + alertSpans.join(' ');
             }
         });
     }
@@ -400,7 +440,7 @@
      * Fetches the *current* price and checks against alerts.
      */
     async function checkPrices() {
-        if (!g_ItemID) return; // Not initialized yet
+        if (!g_ItemID || !g_ItemName) return; // Not initialized yet
 
         const key = `cs2_alert_${g_ItemID}`;
         chrome.storage.local.get([key], async (result) => {
@@ -461,15 +501,20 @@
     function sendNotification(title, message) {
         // We must send a message to the background script to show a notification
         // Content scripts cannot show notifications directly.
-        chrome.runtime.sendMessage({
-            type: 'showNotification',
-            options: {
-                type: 'basic',
-                iconUrl: chrome.runtime.getURL('icon.png'),
-                title: title,
-                message: message
-            }
-        });
+        try {
+            chrome.runtime.sendMessage({
+                type: 'showNotification',
+                options: {
+                    type: 'basic',
+                    iconUrl: chrome.runtime.getURL('icon.png'),
+                    title: title,
+                    message: message
+                }
+            });
+        } catch (e) {
+            console.warn("CS2 Alert: Could not send notification. Has the extension been reloaded?", e);
+            if (priceCheckTimer) clearInterval(priceCheckTimer); // Stop checking
+        }
     }
 
     // --- Start the initialization process ---
