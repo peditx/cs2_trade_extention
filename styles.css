@@ -1,0 +1,139 @@
+/* --- Chart Container --- */
+#my-cs2-chart-container {
+    width: 100% !important; /* width full */
+    max-width: 900px; /* but max width */
+    height: 400px;
+    margin: 20px 0;
+    border: 1px solid #2a2d33; /* steam-compatible color */
+    background-color: #171a21;
+    border-radius: 4px 4px 0 0; /* Top corners rounded */
+    position: relative;
+    margin-bottom: 0; /* Attach to controls */
+}
+
+/* --- Chart Controls (Timeframes & Zoom) --- */
+.cs2-chart-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 10px 15px;
+    background-color: #1b2028;
+    border: 1px solid #2a2d33;
+    border-top: none;
+    max-width: 900px;
+    width: 100% !important;
+    box-sizing: border-box;
+    margin-bottom: 20px;
+    border-radius: 0 0 4px 4px; /* Bottom corners rounded */
+}
+
+.cs2-btn-group {
+    display: flex;
+    gap: 5px;
+}
+
+.cs2-btn {
+    background-color: #2a2f36;
+    border: 1px solid #4b535d;
+    color: #d1d4dc;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.cs2-btn:hover {
+    background-color: #3a3f46;
+}
+
+.cs2-btn.active {
+    background-color: #4b535d;
+    color: #fff;
+    border-color: #6a9c3e;
+}
+
+/* --- In-Chart Messages (Loading/Error) --- */
+.cs2-message-box {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 15px 25px;
+    border-radius: 5px;
+    z-index: 10;
+    font-size: 16px;
+    display: none;
+}
+.cs2-message-box.success { color: #7eb84f; }
+.cs2-message-box.error { color: #ef5350; }
+
+/* --- Price Alert Form --- */
+.cs2-alert-controls {
+    display: flex;
+    flex-wrap: wrap; /* Responsive */
+    align-items: flex-end; /* Align buttons nicely */
+    gap: 15px;
+    padding: 15px;
+    background-color: #1b2028;
+    border: 1px solid #2a2d33;
+    border-radius: 4px;
+    max-width: 900px;
+    width: 100% !important;
+    box-sizing: border-box;
+    margin-top: 20px; /* Spacing from chart */
+}
+
+.cs2-control-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.cs2-control-group label {
+    font-size: 12px;
+    color: #8f98a0;
+    margin-bottom: 5px;
+}
+
+.cs2-alert-controls input[type="text"] {
+    background-color: #2a2f36;
+    border: 1px solid #4b535d;
+    color: #d1d4dc;
+    padding: 8px;
+    border-radius: 3px;
+    width: 150px;
+}
+
+.cs2-alert-controls button {
+    padding: 8px 15px;
+    border-radius: 3px;
+    border: none;
+    background-color: #6a9c3e; /* Green */
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.cs2-alert-controls button#clear-alerts-btn {
+    background-color: #c94c4c; /* Red */
+    margin-left: auto; /* Pushes to the right */
+}
+
+.cs2-alert-controls button:hover {
+    filter: brightness(1.1);
+}
+
+#active-alerts-display {
+    width: 100%;
+    font-size: 13px;
+    color: #d1d4dc;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #2a2d33;
+    display: none; /* Hidden by default */
+}
+
