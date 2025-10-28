@@ -13,7 +13,8 @@ jobs:
 
     steps:
       - name: 1. Checkout repository
-        uses: actions/checkout@v3
+        # Updated from v3 to v4
+        uses: actions/checkout@v4
 
       - name: 2. Read version from manifest
         id: manifest_version
@@ -69,14 +70,16 @@ jobs:
           cd ..
           
       - name: 7. Upload .crx Artifact (for testing)
-        uses: actions/upload-artifact@v3
+        # Updated from v3 to v4
+        uses: actions/upload-artifact@v4
         with:
           name: cs2-trade-extention-crx
           path: "*.crx"
           retention-days: 7
 
       - name: 8. Upload .zip Artifact (for Web Store)
-        uses: actions/upload-artifact@v3
+        # Updated from v3 to v4
+        uses: actions/upload-artifact@v4
         with:
           name: cs2-trade-extention-zip
           path: "*.zip"
