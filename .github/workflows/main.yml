@@ -38,32 +38,35 @@ jobs:
       - name: Create ZIP file
         run: |
           cd build
-          zip -r ../cs2-price-alert-v${{ steps.manifest.outputs.version }}.zip .
+          zip -r ../cs2-trade-extention-v${{ steps.manifest.outputs.version }}.zip .
           cd ..
 
       # === Step 5: Build CRX file (for testing/manual distribution) ===
       - name: Build CRX file
-        uses: Klemensas/chrome-extension-pack-action@v1
+        uses: wj-config/action-pack-chrome-extension@v2
         with:
           # This tells the action where your extension files are
-          pack_dir: 'build'
+          src_dir: 'build'
           
           # This tells the action to name the output file
-          crx_name: 'cs2-price-alert-v${{ steps.manifest.outputs.version }}'
+          crx_name: 'cs2-trade-extention-v${{ steps.manifest.outputs.version }}'
           
           # This uses the private key you stored in GitHub Secrets
-          private_key: ${{ secrets.CRX_PRIVATE_KEY }}
+          pem_key: ${{ secrets.CRX_PRIVATE_KEY }}
+          
+          # Required filename for the private key on the runner
+          pem_name: 'key.pem'
 
       # === Step 6: Upload BOTH files as artifacts ===
       - name: Upload ZIP artifact (for Web Store)
         uses: actions/upload-artifact@v4
         with:
-          name: cs2-price-alert-extension-ZIP
-          path: cs2-price-alert-v${{ steps.manifest.outputs.version }}.zip
+          name: cs2-trade-extention-ZIP
+          path: cs2-trade-extention-v${{ steps.manifest.outputs.version }}.zip
 
       - name: Upload CRX artifact (for Testing)
         uses: actions/upload-artifact@v4
         with:
-          name: cs2-price-alert-extension-CRX
-          path: cs2-price-alert-v${{ steps.manifest.outputs.version }}.crx
+          name: cs2-trade-extention-CRX
+          path: cs2-trade-extention-v${{ steps.manifest.outputs.version }}.crx
 
