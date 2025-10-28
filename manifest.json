@@ -1,34 +1,33 @@
 {
-  "manifest_version": 3,
-  "name": "CS2 Trade Extension",
-  "version": "1.0",
-  "description": "Adds a candlestick chart and price alerts to Steam market pages.",
-  "icons": {
-    "128": "icon.png"
-  },
-  
-  "content_scripts": [
-    {
-      "matches": ["*://steamcommunity.com/market/listings/730/*"],
-      "js": ["content.js"],
-      "css": ["styles.css"]
-    }
-  ],
-  
-  "host_permissions": [
-    "*://steamcommunity.com/market/*"
-  ],
-  
-  "web_accessible_resources": [
-    {
-      "resources": ["lightweight-charts.standalone.production.js"],
-      "matches": ["*://steamcommunity.com/*"]
-    }
-  ],
-  
-  "permissions": [
-    "notifications", 
-    "storage"         
-  ]
+    "manifest_version": 3,
+    "name": "CS2 Price Chart & Alert",
+    "version": "1.2",
+    "description": "Adds a candlestick chart and price alerts to CS2 item pages.",
+    "icons": {
+        "128": "icon.png"
+    },
+    "permissions": [
+        "storage",
+        "notifications"
+    ],
+    "host_permissions": [
+        "*://steamcommunity.com/market/*"
+    ],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "content_scripts": [
+        {
+            "matches": ["*://steamcommunity.com/market/listings/730/*"],
+            "js": ["content.js"],
+            "css": ["styles.css"]
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": ["lightweight-charts.standalone.production.js"],
+            "matches": ["*://steamcommunity.com/*"]
+        }
+    ]
 }
 
